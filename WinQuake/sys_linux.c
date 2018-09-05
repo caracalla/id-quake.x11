@@ -41,12 +41,12 @@ void Sys_Printf (char *fmt, ...)
 {
 	va_list		argptr;
 	char		text[1024];
-	
+
 	va_start (argptr,fmt);
 	vsprintf (text,fmt,argptr);
 	va_end (argptr);
 	fprintf(stderr, "%s", text);
-	
+
 	Con_Print (text);
 }
 
@@ -93,11 +93,11 @@ void Sys_Printf (char *fmt, ...)
 	vsprintf (text,fmt,argptr);
 	va_end (argptr);
 
+  if (nostdout)
+      return;
+
 	if (strlen(text) > sizeof(text))
 		Sys_Error("memory overwrite in Sys_Printf");
-
-    if (nostdout)
-        return;
 
 	for (p = (unsigned char *)text; *p; p++) {
 		*p &= 0x7f;
@@ -118,7 +118,7 @@ static char end2[] =
 void Sys_Quit (void)
 {
 	Host_Shutdown();
-    fcntl (0, F_SETFL, fcntl (0, F_GETFL, 0) & ~FNDELAY);
+  fcntl (0, F_SETFL, fcntl (0, F_GETFL, 0) & ~FNDELAY);
 #if 0
 	if (registered.value)
 		printf("%s", end2);
@@ -137,13 +137,13 @@ void Sys_Init(void)
 }
 
 void Sys_Error (char *error, ...)
-{ 
+{
     va_list     argptr;
     char        string[1024];
 
 // change stdin to non blocking
     fcntl (0, F_SETFL, fcntl (0, F_GETFL, 0) & ~FNDELAY);
-    
+
     va_start (argptr,error);
     vsprintf (string,error,argptr);
     va_end (argptr);
@@ -152,18 +152,18 @@ void Sys_Error (char *error, ...)
 	Host_Shutdown ();
 	exit (1);
 
-} 
+}
 
 void Sys_Warn (char *warning, ...)
-{ 
+{
     va_list     argptr;
     char        string[1024];
-    
+
     va_start (argptr,warning);
     vsprintf (string,warning,argptr);
     va_end (argptr);
 	fprintf(stderr, "Warning: %s", string);
-} 
+}
 
 /*
 ============
@@ -175,10 +175,10 @@ returns -1 if not present
 int	Sys_FileTime (char *path)
 {
 	struct	stat	buf;
-	
+
 	if (stat (path,&buf) == -1)
 		return -1;
-	
+
 	return buf.st_mtime;
 }
 
@@ -192,13 +192,13 @@ int Sys_FileOpenRead (char *path, int *handle)
 {
 	int	h;
 	struct stat	fileinfo;
-    
-	
+
+
 	h = open (path, O_RDONLY, 0666);
 	*handle = h;
 	if (h == -1)
 		return -1;
-	
+
 	if (fstat (h,&fileinfo) == -1)
 		Sys_Error ("Error fstating %s", path);
 
@@ -210,7 +210,7 @@ int Sys_FileOpenWrite (char *path)
 	int     handle;
 
 	umask (0);
-	
+
 	handle = open(path,O_RDWR | O_CREAT | O_TRUNC
 	, 0666);
 
@@ -242,10 +242,10 @@ int Sys_FileRead (int handle, void *dest, int count)
 
 void Sys_DebugLog(char *file, char *fmt, ...)
 {
-    va_list argptr; 
+    va_list argptr;
     static char data[1024];
     int fd;
-    
+
     va_start(argptr, fmt);
     vsprintf(data, fmt, argptr);
     va_end(argptr);
@@ -281,10 +281,10 @@ void Sys_EditFile(char *filename)
 double Sys_FloatTime (void)
 {
     struct timeval tp;
-    struct timezone tzp; 
-    static int      secbase; 
-    
-    gettimeofday(&tp, &tzp);  
+    struct timezone tzp;
+    static int      secbase;
+
+    gettimeofday(&tp, &tzp);
 
     if (!secbase)
     {
@@ -360,9 +360,9 @@ int main (int c, char **v)
 	extern int recording;
 	int j;
 
-//	static char cwd[1024];
+	// static char cwd[1024];
 
-//	signal(SIGFPE, floating_point_exception_handler);
+	// signal(SIGFPE, floating_point_exception_handler);
 	signal(SIGFPE, SIG_IGN);
 
 	memset(&parms, 0, sizeof(parms));
@@ -383,12 +383,12 @@ int main (int c, char **v)
 	parms.membase = malloc (parms.memsize);
 
 	parms.basedir = basedir;
-// caching is disabled by default, use -cachedir to enable
-//	parms.cachedir = cachedir;
+	// caching is disabled by default, use -cachedir to enable
+	//	parms.cachedir = cachedir;
 
 	fcntl(0, F_SETFL, fcntl (0, F_GETFL, 0) | FNDELAY);
 
-    Host_Init(&parms);
+  Host_Init(&parms);
 
 	Sys_Init();
 
@@ -399,35 +399,35 @@ int main (int c, char **v)
 		printf ("Linux Quake -- Version %0.3f\n", LINUX_VERSION);
 	}
 
-    oldtime = Sys_FloatTime () - 0.1;
-    while (1)
+  oldtime = Sys_FloatTime () - 0.1;
+  while (1)
+  {
+		// find time spent rendering last frame
+    newtime = Sys_FloatTime ();
+    time = newtime - oldtime;
+
+    if (cls.state == ca_dedicated)
     {
-// find time spent rendering last frame
-        newtime = Sys_FloatTime ();
-        time = newtime - oldtime;
-
-        if (cls.state == ca_dedicated)
-        {   // play vcrfiles at max speed
-            if (time < sys_ticrate.value && (vcrFile == -1 || recording) )
-            {
-				usleep(1);
-                continue;       // not time to run a server only tic yet
-            }
-            time = sys_ticrate.value;
-        }
-
-        if (time > sys_ticrate.value*2)
-            oldtime = newtime;
-        else
-            oldtime += time;
-
-        Host_Frame (time);
-
-// graphic debugging aids
-        if (sys_linerefresh.value)
-            Sys_LineRefresh ();
+    	// play vcrfiles at max speed
+      if (time < sys_ticrate.value && (vcrFile == -1 || recording) )
+      {
+					usleep(1);
+          continue;       // not time to run a server only tic yet
+      }
+      time = sys_ticrate.value;
     }
 
+    if (time > sys_ticrate.value*2)
+      oldtime = newtime;
+    else
+      oldtime += time;
+
+    Host_Frame (time);
+
+		// graphic debugging aids
+    if (sys_linerefresh.value)
+      Sys_LineRefresh ();
+  }
 }
 
 
